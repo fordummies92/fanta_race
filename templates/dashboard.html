@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ league_name }} — Fanta Race</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1a2e;
+      color: #fff;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 24px 40px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .league-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, #e63946, #f4a261, #e9c46a);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .back-btn {
+      text-decoration: none;
+      color: rgba(255,255,255,0.5);
+      font-size: 0.85rem;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 6px 14px;
+      transition: all 0.2s;
+    }
+    .back-btn:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+
+    .section { padding: 28px 40px; }
+
+    /* Section header with title + controls */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.55);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Animation controls */
+    .anim-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ctrl-btn {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      color: #fff;
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .ctrl-btn:hover:not(:disabled) { background: rgba(255,255,255,0.14); }
+    .ctrl-btn:disabled { opacity: 0.35; cursor: default; }
+    .ctrl-btn.playing {
+      background: rgba(230,57,70,0.2);
+      border-color: rgba(230,57,70,0.45);
+    }
+
+    .speed-divider {
+      width: 1px;
+      height: 20px;
+      background: rgba(255,255,255,0.12);
+      margin: 0 2px;
+    }
+
+    .speed-btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: rgba(255,255,255,0.5);
+      padding: 5px 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .speed-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .speed-btn.active {
+      background: rgba(233,196,106,0.18);
+      border-color: rgba(233,196,106,0.45);
+      color: #e9c46a;
+      font-weight: 700;
+    }
+
+    .chart-box {
+      background: #16213e;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .plotly-chart { width: 100%; }
+
+    /* Classifica + Loghi */
+    .logo-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 4px;
+    }
+
+    .logo-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 14px 16px;
+      min-width: 90px;
+      border: 1px solid rgba(255,255,255,0.08);
+      transition: background 0.2s;
+    }
+    .logo-card:hover { background: rgba(255,255,255,0.09); }
+    .logo-card img {
+      width: 56px; height: 56px;
+      object-fit: contain; border-radius: 8px;
+    }
+    .logo-card .team-dot {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 1.1rem; color: #fff;
+    }
+    .logo-card span {
+      font-size: 0.72rem; text-align: center;
+      color: rgba(255,255,255,0.7); line-height: 1.3; max-width: 80px;
+    }
+
+    .warn {
+      background: rgba(233,196,106,0.1);
+      border: 1px solid rgba(233,196,106,0.3);
+      border-radius: 10px;
+      padding: 10px 16px;
+      color: #e9c46a;
+      font-size: 0.84rem;
+    }
+
+    footer {
+      text-align: center;
+      padding: 32px;
+      color: rgba(255,255,255,0.2);
+      font-size: 0.8rem;
+    }
+
+    .standings-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    .standings-table th {
+      text-align: left;
+      color: rgba(255,255,255,0.4);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .standings-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .standings-table tr:last-child td { border-bottom: none; }
+    .standings-table .rank { color: rgba(255,255,255,0.35); font-size: 0.8rem; width: 32px; }
+    .standings-table .pts { font-weight: 700; text-align: right; }
+    .color-dot {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%; margin-right: 8px;
+    }
+
+    @media (max-width: 600px) {
+      header, .section { padding-left: 20px; padding-right: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="league-title">{{ league_name }}</div>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div class="anim-controls">
+      <button class="ctrl-btn" id="global-play">▶ Play</button>
+      <button class="ctrl-btn" id="global-pause" disabled>⏸ Pausa</button>
+      <div class="speed-divider"></div>
+      <button class="speed-btn" data-ms="80">🐢</button>
+      <button class="speed-btn active" data-ms="42">1×</button>
+      <button class="speed-btn" data-ms="18">⚡</button>
+    </div>
+    <a href="/" class="back-btn">← Carica altro file</a>
+  </div>
+</header>
+
+{% if logo_error %}
+<div class="section" style="padding-bottom:0">
+  <div class="warn">{{ logo_error }}</div>
+</div>
+{% endif %}
+
+<!-- Bar Chart Race -->
+<div class="section">
+  <div class="section-title">Bar Chart Race — Classifica Cumulativa</div>
+  <div class="chart-box">
+    <div id="bar-chart" class="plotly-chart"></div>
+  </div>
+</div>
+
+<!-- Line Chart -->
+<div class="section">
+  <div class="section-title">Punti nel Tempo</div>
+  <div class="chart-box">
+    <div id="line-chart" class="plotly-chart"></div>
+  </div>
+</div>
+
+<!-- Classifica Finale + Loghi -->
+<div class="section" style="display:grid; grid-template-columns: 1fr {% if has_logos %}1fr{% endif %}; gap: 32px; align-items: start;">
+  <div>
+    <div class="section-title" style="margin-bottom:16px">Classifica Finale</div>
+    <div class="chart-box" style="padding: 8px 0;">
+      <table class="standings-table" id="standings-table"></table>
+    </div>
+  </div>
+  {% if has_logos %}
+  <div>
+    <div class="section-title" style="margin-bottom:16px">Squadre</div>
+    <div class="logo-grid" id="logo-grid"></div>
+  </div>
+  {% endif %}
+</div>
+
+<footer>Fanta Race · fanta_race.py</footer>
+
+<script>
+  const D = {{ data|safe }};
+
+  const BG_PAPER = '#1a1a2e';
+  const BG_PLOT  = '#16213e';
+  const GRID     = '#1e2a45';
+
+  function ease(t) { return t * t * (3 - 2 * t); }
+
+  // ── Stato globale ────────────────────────────────────────────────────────────
+  let barGd      = null;
+  let lineGd     = null;
+  let isPlaying  = false;
+  let speed      = 42;   // ms per frame
+  let barDone    = false;
+  let lineDone   = false;
+
+  const playBtn  = document.getElementById('global-play');
+  const pauseBtn = document.getElementById('global-pause');
+
+  function animOpts() {
+    return { fromcurrent: true, transition: { duration: 0 }, frame: { duration: speed, redraw: false } };
+  }
+
+  function playAll() {
+    if (!barGd || !lineGd) return;
+    isPlaying = true; barDone = false; lineDone = false;
+    playBtn.classList.add('playing'); playBtn.disabled = true; pauseBtn.disabled = false;
+    Plotly.animate(barGd,  null, animOpts());
+    Plotly.animate(lineGd, null, animOpts());
+  }
+
+  function pauseAll() {
+    isPlaying = false;
+    playBtn.classList.remove('playing'); playBtn.disabled = false; pauseBtn.disabled = true;
+    if (barGd)  Plotly.animate(barGd,  [null], { mode: 'immediate' });
+    if (lineGd) Plotly.animate(lineGd, [null], { mode: 'immediate' });
+  }
+
+  function onChartDone(which) {
+    if (which === 'bar')  barDone  = true;
+    if (which === 'line') lineDone = true;
+    if (barDone && lineDone) {
+      isPlaying = false;
+      playBtn.classList.remove('playing'); playBtn.disabled = false; pauseBtn.disabled = true;
+    }
+  }
+
+  playBtn.addEventListener('click', playAll);
+  pauseBtn.addEventListener('click', pauseAll);
+
+  document.querySelectorAll('.speed-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      speed = parseInt(btn.dataset.ms);
+      document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (isPlaying) {
+        // Riprende entrambi con la nuova velocità dal punto corrente
+        if (barGd)  Plotly.animate(barGd,  null, animOpts());
+        if (lineGd) Plotly.animate(lineGd, null, animOpts());
+      }
+    });
+  });
+
+
+  // ── BAR CHART RACE ───────────────────────────────────────────────────────────
+
+  (function buildBarRace() {
+    const { teams, standings, giornate, colors } = D;
+    const N = teams.length;
+    const ISTEPS = 22;
+    const HOLD   = 9;
+
+    function getRanks(pts) {
+      const sorted = [...teams].sort((a, b) => pts[b] - pts[a] || a.localeCompare(b));
+      const r = {};
+      sorted.forEach((t, i) => r[t] = i);
+      return r;
+    }
+    const rankToY = r => N - 1 - r;
+    const maxPts = Math.max(...standings.map(s => Math.max(...Object.values(s))));
+
+    // Genera frame interpolati
+    const allFrames = [];
+    let prevPts   = Object.fromEntries(teams.map(t => [t, 0]));
+    let prevRanks = getRanks(prevPts);
+
+    giornate.forEach((label, gi) => {
+      const curPts   = standings[gi];
+      const curRanks = getRanks(curPts);
+      const prevLabel = gi > 0 ? giornate[gi - 1] : label;
+
+      for (let s = 1; s <= ISTEPS; s++) {
+        const t = ease(s / ISTEPS);
+        allFrames.push({
+          traceUpdates: teams.map(tm => ({
+            x: [prevPts[tm] + t * (curPts[tm] - prevPts[tm])],
+            y: [rankToY(prevRanks[tm] + t * (curRanks[tm] - prevRanks[tm]))],
+            text: [`  ${tm}  ${Math.round(prevPts[tm] + t * (curPts[tm] - prevPts[tm]))}pt`],
+          })),
+          label: t >= 0.5 ? label : prevLabel,
+        });
+      }
+      for (let h = 0; h < HOLD; h++) {
+        allFrames.push({
+          traceUpdates: teams.map(tm => ({
+            x: [curPts[tm]], y: [rankToY(curRanks[tm])],
+            text: [`  ${tm}  ${curPts[tm]}pt`],
+          })),
+          label,
+        });
+      }
+      prevPts = curPts; prevRanks = curRanks;
+    });
+
+    const traces = teams.map((team, ti) => ({
+      type: 'bar', orientation: 'h', name: team,
+      x: [0], y: [rankToY(ti)], width: [0.75],
+      marker: { color: colors[team], line: { width: 0 } },
+      text: [`  ${team}  0pt`],
+      textposition: 'inside', insidetextanchor: 'start',
+      textfont: { color: '#fff', size: 11 },
+      cliponaxis: false, showlegend: false,
+      hovertemplate: `<b>${team}</b><br>%{x:.0f} pt<extra></extra>`,
+    }));
+
+    const layout = {
+      barmode: 'overlay',
+      paper_bgcolor: BG_PAPER, plot_bgcolor: BG_PLOT,
+      height: 420,
+      margin: { l: 14, r: 70, t: 20, b: 50 },
+      xaxis: { range: [0, maxPts * 1.18], color: 'rgba(255,255,255,0.35)', gridcolor: GRID, zeroline: false, tickfont: { size: 11 } },
+      yaxis: { range: [-0.6, N - 0.4], showgrid: false, zeroline: false, tickvals: [], showticklabels: false },
+      font: { color: '#fff', family: 'Segoe UI, system-ui, sans-serif' },
+      annotations: [{
+        x: 0.99, y: 0.04, xref: 'paper', yref: 'paper',
+        text: giornate[0], showarrow: false,
+        font: { size: 42, color: 'rgba(255,255,255,0.12)', family: 'Segoe UI Black, sans-serif' },
+        xanchor: 'right',
+      }],
+      sliders: [{
+        active: 0,
+        steps: giornate.map((label, gi) => ({
+          method: 'animate', label,
+          args: [[`bf${gi * (ISTEPS + HOLD) + ISTEPS}`], { mode: 'immediate', transition: { duration: 0 }, frame: { duration: 0, redraw: true } }],
+        })),
+        x: 0, y: -0.04, len: 1,
+        currentvalue: { prefix: '', font: { color: 'rgba(255,255,255,0.45)', size: 12 } },
+        bgcolor: 'rgba(255,255,255,0.05)', bordercolor: 'rgba(255,255,255,0.1)',
+        tickcolor: 'rgba(255,255,255,0.15)', font: { color: 'rgba(255,255,255,0.35)', size: 9 },
+        pad: { t: 8 },
+      }],
+    };
+
+    const plotlyFrames = allFrames.map((f, fi) => ({
+      name: `bf${fi}`, data: f.traceUpdates,
+      layout: { 'annotations[0].text': f.label },
+    }));
+
+    Plotly.newPlot('bar-chart', traces, layout, { responsive: true, displayModeBar: false })
+      .then(gd => {
+        barGd = gd;
+        Plotly.addFrames(gd, plotlyFrames);
+        gd.on('plotly_animated', () => onChartDone('bar'));
+      });
+  })();
+
+
+  // ── LINE CHART ANIMATO ───────────────────────────────────────────────────────
+
+  (function buildLineChart() {
+    const { teams, standings, giornate, colors } = D;
+    const LSTEPS = 16;
+    const LHOLD  = 6;
+    const nG = giornate.length;
+
+    // Tick labels: Start, G1, G2, ...
+    const tickVals = Array.from({ length: nG + 1 }, (_, k) => k);
+    const tickText = ['Start', ...giornate];
+    const maxPts = Math.max(...standings.map(s => Math.max(...Object.values(s))));
+
+    // Trace iniziali (solo il punto Start)
+    const lineTraces = teams.map(team => ({
+      type: 'scatter', mode: 'lines+markers',
+      name: team,
+      x: [0], y: [0],
+      line: { color: colors[team], width: 2.5 },
+      marker: { size: 6, color: colors[team] },
+      hovertemplate: `<b>${team}</b><br>%{y} pt<extra></extra>`,
+    }));
+
+    // Genera frame
+    const lineFrames = [];
+    let lprev = Object.fromEntries(teams.map(t => [t, 0]));
+
+    giornate.forEach((label, gi) => {
+      const lcur = standings[gi];
+      const prevLabel = gi > 0 ? giornate[gi - 1] : 'Start';
+
+      // Frame di transizione verso giornata gi
+      for (let s = 1; s <= LSTEPS; s++) {
+        const frac = ease(s / LSTEPS);
+        const interpX = gi + frac;
+
+        lineFrames.push({
+          name: `lf${lineFrames.length}`,
+          data: teams.map(tm => {
+            // Punti già rivelati (0..gi incluso) + punto interpolato
+            const baseX = Array.from({ length: gi + 1 }, (_, k) => k);
+            const baseY = [0, ...Array.from({ length: gi }, (_, k) => standings[k][tm])];
+            const interY = lprev[tm] + frac * (lcur[tm] - lprev[tm]);
+            return { x: [...baseX, interpX], y: [...baseY, interY] };
+          }),
+          layout: {
+            'annotations[0].text': frac >= 0.5 ? label : prevLabel,
+          },
+        });
+      }
+
+      // Hold frames
+      for (let h = 0; h < LHOLD; h++) {
+        lineFrames.push({
+          name: `lf${lineFrames.length}`,
+          data: teams.map(tm => ({
+            x: Array.from({ length: gi + 2 }, (_, k) => k),
+            y: [0, ...Array.from({ length: gi + 1 }, (_, k) => standings[k][tm])],
+          })),
+          layout: { 'annotations[0].text': label },
+        });
+      }
+
+      lprev = lcur;
+    });
+
+    const lineLayout = {
+      paper_bgcolor: BG_PAPER, plot_bgcolor: BG_PLOT,
+      height: 380,
+      margin: { l: 50, r: 160, t: 20, b: 50 },
+      xaxis: {
+        range: [-0.3, nG + 0.5],
+        tickvals: tickVals, ticktext: tickText,
+        color: 'rgba(255,255,255,0.4)', gridcolor: GRID,
+        zeroline: false, tickfont: { size: 10 }, tickangle: -45,
+      },
+      yaxis: {
+        range: [-2, maxPts + 5],
+        color: 'rgba(255,255,255,0.4)', gridcolor: GRID,
+        zeroline: false,
+        title: { text: 'Punti', font: { color: 'rgba(255,255,255,0.3)', size: 11 } },
+      },
+      legend: {
+        x: 1.01, y: 1, xanchor: 'left',
+        bgcolor: 'rgba(0,0,0,0)',
+        font: { color: 'rgba(255,255,255,0.7)', size: 11 },
+      },
+      font: { color: '#fff', family: 'Segoe UI, system-ui, sans-serif' },
+      hovermode: 'x unified',
+      annotations: [{
+        x: 0.99, y: 0.06, xref: 'paper', yref: 'paper',
+        text: giornate[0], showarrow: false,
+        font: { size: 38, color: 'rgba(255,255,255,0.10)', family: 'Segoe UI Black, sans-serif' },
+        xanchor: 'right',
+      }],
+      sliders: [{
+        active: 0,
+        steps: giornate.map((label, gi) => ({
+          method: 'animate', label,
+          args: [[`lf${gi * (LSTEPS + LHOLD) + LSTEPS - 1}`], { mode: 'immediate', transition: { duration: 0 }, frame: { duration: 0, redraw: true } }],
+        })),
+        x: 0, y: -0.04, len: 1,
+        currentvalue: { prefix: '', font: { color: 'rgba(255,255,255,0.45)', size: 12 } },
+        bgcolor: 'rgba(255,255,255,0.05)', bordercolor: 'rgba(255,255,255,0.1)',
+        tickcolor: 'rgba(255,255,255,0.15)', font: { color: 'rgba(255,255,255,0.35)', size: 9 },
+        pad: { t: 8 },
+      }],
+    };
+
+    Plotly.newPlot('line-chart', lineTraces, lineLayout, { responsive: true, displayModeBar: false })
+      .then(gd => {
+        lineGd = gd;
+        Plotly.addFrames(gd, lineFrames);
+        gd.on('plotly_animated', () => onChartDone('line'));
+      });
+  })();
+
+
+  // ── CLASSIFICA FINALE ────────────────────────────────────────────────────────
+
+  (function buildStandings() {
+    const { teams, standings, colors } = D;
+    const final = standings[standings.length - 1];
+    const sorted = [...teams].sort((a, b) => final[b] - final[a]);
+    const table = document.getElementById('standings-table');
+
+    table.innerHTML = `<thead><tr><th>#</th><th>Squadra</th><th style="text-align:right">Punti</th></tr></thead>`;
+    const tbody = document.createElement('tbody');
+    sorted.forEach((team, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="rank">${i + 1}</td>
+        <td><span class="color-dot" style="background:${colors[team]}"></span>${team}</td>
+        <td class="pts">${final[team]}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+  })();
+
+
+  // ── LOGO GRID ────────────────────────────────────────────────────────────────
+
+  (function buildLogoGrid() {
+    const grid = document.getElementById('logo-grid');
+    if (!grid) return;
+    const { logos, teams, colors, standings } = D;
+    const final = standings[standings.length - 1];
+    const sorted = [...teams].sort((a, b) => final[b] - final[a]);
+
+    sorted.forEach(team => {
+      const card = document.createElement('div');
+      card.className = 'logo-card';
+      let logoUrl = logos[team];
+      if (!logoUrl) {
+        const tLow = team.toLowerCase();
+        for (const [k, v] of Object.entries(logos)) {
+          if (k.toLowerCase().includes(tLow) || tLow.includes(k.toLowerCase())) { logoUrl = v; break; }
+        }
+      }
+      card.innerHTML = logoUrl
+        ? `<img src="${logoUrl}" alt="${team}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+           <div class="team-dot" style="background:${colors[team]};display:none">${team[0]}</div>
+           <span>${team}</span>`
+        : `<div class="team-dot" style="background:${colors[team]}">${team[0]}</div><span>${team}</span>`;
+      grid.appendChild(card);
+    });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+*.xlsx
+*.gif
+*.mp4
+.env
