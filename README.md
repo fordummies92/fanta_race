@@ -2,7 +2,7 @@
 
 Webapp per visualizzare la classifica della tua lega di Fantacalcio con animazioni interattive.
 
-Carica il file Excel esportato da Fantagazzetta o Fantacalcio e ottieni due grafici animati:
+Carica il file Excel esportato da Fantagazzetta e ottieni due grafici animati:
 
 - **Bar Chart Race** — classifica cumulativa giornata per giornata con le barre che si riordinano in tempo reale
 - **Line Chart** — punti accumulati nel tempo con le linee che si disegnano progressivamente
@@ -46,7 +46,7 @@ Apri il browser su [http://localhost:5050](http://localhost:5050).
 
 ## Come si usa
 
-1. Esporta il calendario dalla tua lega su **Fantagazzetta** o **Fantacalcio** (file `.xlsx`)
+1. Esporta il calendario dalla tua lega su **Fantagazzetta** (file `.xlsx`)
 2. Trascina il file nella pagina di upload
 3. (Opzionale) Incolla l'URL della tua lega per caricare i loghi delle squadre
 4. Clicca **Genera Grafici**
@@ -74,7 +74,7 @@ fanta_race/
 
 ## Formato Excel supportato
 
-Il file deve contenere un foglio con righe nel formato Fantagazzetta/Fantacalcio (`Xª Giornata lega`). Il foglio può chiamarsi in qualsiasi modo — l'app lo individua automaticamente.
+Il file deve contenere un foglio con righe nel formato Fantagazzetta (`Xª Giornata lega`). Il foglio può chiamarsi in qualsiasi modo — l'app lo individua automaticamente.
 
 ---
 
