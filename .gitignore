@@ -1,6 +1,15 @@
+.env
 __pycache__/
 *.py[cod]
+*.pyc
+*.pyo
 *.xlsx
 *.gif
 *.mp4
-.env
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+uploads/
