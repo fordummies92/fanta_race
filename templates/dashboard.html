@@ -435,23 +435,59 @@
   // ── LINE CHART ANIMATO ───────────────────────────────────────────────────────
 
   (function buildLineChart() {
-    const { teams, standings, giornate, colors } = D;
+    const { teams, standings, giornate, colors, logos } = D;
     const LSTEPS = 16;
     const LHOLD  = 6;
     const nG = giornate.length;
 
-    // Tick labels: Start, G1, G2, ...
     const tickVals = Array.from({ length: nG + 1 }, (_, k) => k);
     const tickText = ['Start', ...giornate];
     const maxPts = Math.max(...standings.map(s => Math.max(...Object.values(s))));
 
-    // Trace iniziali (solo il punto Start)
+    // Logo per ogni squadra (fuzzy match)
+    const logoMap = logos || {};
+    function getLogoUrl(team) {
+      if (logoMap[team]) return logoMap[team];
+      const tLow = team.toLowerCase();
+      for (const [k, v] of Object.entries(logoMap)) {
+        if (k.toLowerCase().includes(tLow) || tLow.includes(k.toLowerCase())) return v;
+      }
+      return null;
+    }
+
+    const teamLogos = Object.fromEntries(teams.map(t => [t, getLogoUrl(t)]));
+    const hasAnyLogo = Object.values(teamLogos).some(Boolean);
+
+    // Dimensioni logo in coordinate dati (~22px)
+    const logoSizeX = (nG + 1) * 0.032;
+    const logoSizeY = (maxPts + 7) * 0.065;
+
+    // Costruisce l'array layout.images per i team con logo, posizionati alla punta
+    function makeLogoImages(tips) {
+      // tips: { team: { x, y } }
+      return teams
+        .filter(tm => teamLogos[tm])
+        .map(tm => ({
+          source:   teamLogos[tm],
+          x:        tips[tm].x,
+          y:        tips[tm].y,
+          xref: 'x', yref: 'y',
+          sizex:    logoSizeX,
+          sizey:    logoSizeY,
+          xanchor: 'center',
+          yanchor: 'middle',
+          layer:   'above',
+        }));
+    }
+
+    // Trace: linee senza marker per i team con logo, con marker per gli altri
     const lineTraces = teams.map(team => ({
-      type: 'scatter', mode: 'lines+markers',
+      type: 'scatter',
+      mode: teamLogos[team] ? 'lines' : 'lines+markers',
       name: team,
       x: [0], y: [0],
       line: { color: colors[team], width: 2.5 },
-      marker: { size: 6, color: colors[team] },
+      marker: { size: 7, color: colors[team] },
       hovertemplate: `<b>${team}</b><br>%{y} pt<extra></extra>`,
     }));
 
@@ -463,53 +499,66 @@
       const lcur = standings[gi];
       const prevLabel = gi > 0 ? giornate[gi - 1] : 'Start';
 
-      // Frame di transizione verso giornata gi
+      // Transizione verso giornata gi
       for (let s = 1; s <= LSTEPS; s++) {
         const frac = ease(s / LSTEPS);
         const interpX = gi + frac;
 
+        const tips = Object.fromEntries(teams.map(tm => {
+          const interY = lprev[tm] + frac * (lcur[tm] - lprev[tm]);
+          return [tm, { x: interpX, y: interY }];
+        }));
+
         lineFrames.push({
           name: `lf${lineFrames.length}`,
           data: teams.map(tm => {
-            // Punti già rivelati (0..gi incluso) + punto interpolato
             const baseX = Array.from({ length: gi + 1 }, (_, k) => k);
             const baseY = [0, ...Array.from({ length: gi }, (_, k) => standings[k][tm])];
-            const interY = lprev[tm] + frac * (lcur[tm] - lprev[tm]);
-            return { x: [...baseX, interpX], y: [...baseY, interY] };
+            return { x: [...baseX, interpX], y: [...baseY, tips[tm].y] };
           }),
           layout: {
             'annotations[0].text': frac >= 0.5 ? label : prevLabel,
+            ...(hasAnyLogo && { images: makeLogoImages(tips) }),
           },
         });
       }
 
       // Hold frames
       for (let h = 0; h < LHOLD; h++) {
+        const tips = Object.fromEntries(teams.map(tm => [tm, { x: gi + 1, y: lcur[tm] }]));
         lineFrames.push({
           name: `lf${lineFrames.length}`,
           data: teams.map(tm => ({
             x: Array.from({ length: gi + 2 }, (_, k) => k),
             y: [0, ...Array.from({ length: gi + 1 }, (_, k) => standings[k][tm])],
           })),
-          layout: { 'annotations[0].text': label },
+          layout: {
+            'annotations[0].text': label,
+            ...(hasAnyLogo && { images: makeLogoImages(tips) }),
+          },
         });
       }
 
       lprev = lcur;
     });
 
+    // Immagini iniziali (tutte a x=0, y=0)
+    const initImages = hasAnyLogo
+      ? makeLogoImages(Object.fromEntries(teams.map(t => [t, { x: 0, y: 0 }])))
+      : [];
+
     const lineLayout = {
       paper_bgcolor: BG_PAPER, plot_bgcolor: BG_PLOT,
       height: 380,
-      margin: { l: 50, r: 160, t: 20, b: 50 },
+      margin: { l: 50, r: 20, t: 20, b: 50 },
       xaxis: {
-        range: [-0.3, nG + 0.5],
+        range: [-0.3, nG + 2.5],
         tickvals: tickVals, ticktext: tickText,
         color: 'rgba(255,255,255,0.4)', gridcolor: GRID,
         zeroline: false, tickfont: { size: 10 }, tickangle: -45,
       },
       yaxis: {
-        range: [-2, maxPts + 5],
+        range: [-2, maxPts + 8],
         color: 'rgba(255,255,255,0.4)', gridcolor: GRID,
         zeroline: false,
         title: { text: 'Punti', font: { color: 'rgba(255,255,255,0.3)', size: 11 } },
@@ -521,6 +570,7 @@
       },
       font: { color: '#fff', family: 'Segoe UI, system-ui, sans-serif' },
       hovermode: 'x unified',
+      images: initImages,
       annotations: [{
         x: 0.99, y: 0.06, xref: 'paper', yref: 'paper',
         text: giornate[0], showarrow: false,

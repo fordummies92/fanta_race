@@ -143,27 +143,6 @@ _BROWSER_HEADERS = {
 }
 
 
-def _extract_logos_from_json(data, depth=0):
-    """Cerca ricorsivamente coppie {name, logo} in qualsiasi JSON."""
-    if depth > 10:
-        return {}
-    logos = {}
-    if isinstance(data, dict):
-        name = (data.get('name') or data.get('teamName') or
-                data.get('team_name') or data.get('squadra') or '')
-        logo = (data.get('logo') or data.get('logoUrl') or data.get('logo_url') or
-                data.get('image') or data.get('imageUrl') or data.get('image_url') or
-                data.get('team_logo') or data.get('crest') or data.get('picture') or '')
-        if name and logo and isinstance(name, str) and isinstance(logo, str):
-            logos[name.strip()] = logo.strip()
-        for v in data.values():
-            logos.update(_extract_logos_from_json(v, depth + 1))
-    elif isinstance(data, list):
-        for item in data:
-            logos.update(_extract_logos_from_json(item, depth + 1))
-    return logos
-
-
 def _try_api_endpoints(endpoints):
     """Prova una lista di endpoint JSON, ritorna il primo dict non vuoto."""
     headers = {**_BROWSER_HEADERS, 'Accept': 'application/json'}
@@ -173,75 +152,20 @@ def _try_api_endpoints(endpoints):
             if resp.status_code != 200:
                 continue
             data = resp.json()
-            logos = _extract_logos_from_json(data)
+            # Cerca coppie {name, logo} nel JSON
+            items = (data if isinstance(data, list) else
+                     data.get('data') or data.get('teams') or data.get('standings') or [])
+            logos = {}
+            for item in items:
+                name = item.get('name') or item.get('team_name') or ''
+                logo = item.get('logo') or item.get('logo_url') or item.get('image') or ''
+                if name and logo:
+                    logos[name.strip()] = logo.strip()
             if logos:
                 return logos
         except Exception:
             continue
     return {}
-
-
-def _scrape_page_for_logos(url):
-    """
-    Scarica la pagina HTML e cerca:
-    1. JSON embedded in <script> (Nuxt __NUXT__, Next __NEXT_DATA__, ecc.)
-    2. Tag <img> con attributi che suggeriscono loghi squadra
-    """
-    logos = {}
-    try:
-        resp = requests.get(url, headers={**_BROWSER_HEADERS, 'Accept': 'text/html'}, timeout=12)
-        if resp.status_code != 200:
-            return logos
-        html = resp.text
-        soup = BeautifulSoup(html, 'html.parser')
-
-        # 1. Script tag con JSON embedded
-        for script in soup.find_all('script'):
-            content = script.string or ''
-            # Nuxt / Next / generici pattern
-            for pattern in [
-                r'window\.__NUXT__\s*=\s*(\{.+)',
-                r'<script[^>]+id=["\']__NUXT_DATA__["\'][^>]*>(.+)',
-                r'window\.__INITIAL_STATE__\s*=\s*(\{.+)',
-                r'window\.__APP_STATE__\s*=\s*(\{.+)',
-            ]:
-                m = re.search(pattern, content, re.DOTALL)
-                if m:
-                    # Tenta di parsare raccogliendo JSON valido
-                    raw = m.group(1).rstrip(';')
-                    try:
-                        data = json.loads(raw)
-                        found = _extract_logos_from_json(data)
-                        logos.update(found)
-                    except Exception:
-                        pass
-
-            # Script type="application/json"
-            if script.get('type') == 'application/json':
-                try:
-                    data = json.loads(content)
-                    logos.update(_extract_logos_from_json(data))
-                except Exception:
-                    pass
-
-        if logos:
-            return logos
-
-        # 2. Tag <img> con src che contiene parole chiave legate a loghi
-        base_url = '/'.join(url.split('/')[:3])
-        for img in soup.find_all('img'):
-            src = img.get('src', '') or img.get('data-src', '')
-            alt = img.get('alt', '').strip()
-            if not src or not alt:
-                continue
-            if any(kw in src.lower() for kw in ['logo', 'team', 'squadra', 'crest', 'shield']):
-                if src.startswith('/'):
-                    src = base_url + src
-                logos[alt] = src
-
-    except Exception:
-        pass
-    return logos
 
 
 def fetch_logos(league_input):
@@ -256,28 +180,41 @@ def fetch_logos(league_input):
 
     # ── fantacalcio.it ──────────────────────────────────────────────────────
     if 'fantacalcio.it' in league_input:
+        import base64 as _b64
         m = re.search(r'leghe\.fantacalcio\.it/([^/?#]+)', league_input)
         if not m:
             return {}
         slug = m.group(1)
-        base = f'https://leghe.fantacalcio.it/{slug}'
 
-        # Prima tenta API REST con slug
-        logos = _try_api_endpoints([
-            f'https://leghe.fantacalcio.it/api/v1/leagues/{slug}/participants',
-            f'https://leghe.fantacalcio.it/api/v1/leagues/{slug}/ranking',
-            f'https://leghe.fantacalcio.it/api/v1/leagues/{slug}/teams',
-            f'https://leghe.fantacalcio.it/api/leagues/{slug}/participants',
-            f'https://leghe.fantacalcio.it/api/{slug}/teams',
-        ])
-        if logos:
-            return logos
-
-        # Poi scraping delle pagine più ricche di dati
-        for page in [f'{base}/classifica', f'{base}/squadre', f'{base}/calendario', league_input]:
-            logos = _scrape_page_for_logos(page)
-            if logos:
-                return logos
+        # La pagina /squadre contiene un payload base64 in __.dp('...') con
+        # nome squadra ("n") e filename logo ("l") per ogni team.
+        LOGO_BASE = 'https://d2lhpso9w1g8dk.cloudfront.net/web/risorse/squadra_2025/'
+        try:
+            resp = requests.get(
+                f'https://leghe.fantacalcio.it/{slug}/squadre',
+                headers={**_BROWSER_HEADERS, 'Accept': 'text/html'},
+                timeout=12,
+            )
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            for script in soup.find_all('script'):
+                content = script.string or ''
+                matches = re.findall(r"__\.dp\('([A-Za-z0-9+/=]{20,})'\)", content)
+                for encoded in matches:
+                    try:
+                        data = json.loads(_b64.b64decode(encoded).decode('utf-8'))
+                        items = data if isinstance(data, list) else data.get('data', [])
+                        logos = {}
+                        for item in items:
+                            name = item.get('n', '').strip()
+                            logo_file = item.get('l', '').strip()
+                            if name and logo_file and not logo_file.startswith('no_logo'):
+                                logos[name] = LOGO_BASE + logo_file
+                        if logos:
+                            return logos
+                    except Exception:
+                        continue
+        except Exception:
+            pass
         return {}
 
     # ── fantagazzetta.com (ID numerico) ─────────────────────────────────────
