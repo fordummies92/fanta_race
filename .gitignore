@@ -6,6 +6,7 @@ __pycache__/
 *.xlsx
 *.gif
 *.mp4
+!docs/media/*.gif
 .pytest_cache/
 *.egg-info/
 dist/

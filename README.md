@@ -1,30 +1,30 @@
 # Fanta Race
 
-Webapp per visualizzare la classifica della tua lega di Fantacalcio con animazioni interattive.
+A web app that visualizes your Fantacalcio (Italian fantasy football) league standings with animated charts.
 
-Carica il file Excel esportato da Fantagazzetta e ottieni due grafici animati:
+Upload the Excel file exported from Fantagazzetta and get two animated charts:
 
-- **Bar Chart Race** — classifica cumulativa giornata per giornata con le barre che si riordinano in tempo reale
-- **Line Chart** — punti accumulati nel tempo con le linee che si disegnano progressivamente
-
----
-
-## Screenshot
-
-| Upload | Dashboard |
-|--------|-----------|
-| Trascina il file Excel | Bar Chart Race + Line Chart animati |
+- **Bar Chart Race** — cumulative standings, matchday by matchday, with bars reordering in real time
+- **Line Chart** — points accumulated over time, with lines drawing progressively
 
 ---
 
-## Requisiti
+## Demo
+
+| Bar Chart Race | Line Chart |
+|----------------|------------|
+| ![Bar Chart Race](docs/media/fanta_race.gif) | ![Line Chart](docs/media/fanta_line.gif) |
+
+---
+
+## Requirements
 
 - Python 3.9+
 - pip
 
 ---
 
-## Installazione
+## Installation
 
 ```bash
 git clone https://github.com/fordummies92/fanta_race.git
@@ -34,55 +34,64 @@ pip install flask openpyxl requests beautifulsoup4
 
 ---
 
-## Avvio
+## Run
 
 ```bash
 python3 app.py
 ```
 
-Apri il browser su [http://localhost:5050](http://localhost:5050).
+Open your browser at [http://localhost:5050](http://localhost:5050).
 
 ---
 
-## Come si usa
+## How to use
 
-1. Esporta il calendario dalla tua lega su **Fantagazzetta** (file `.xlsx`)
-2. Trascina il file nella pagina di upload
-3. (Opzionale) Incolla l'URL della tua lega per caricare i loghi delle squadre
-4. Clicca **Genera Grafici**
+1. Export your league's calendar from **Fantagazzetta** (`.xlsx` file)
+2. Drag and drop the file onto the upload page
+3. (Optional) Paste your league's URL to fetch team logos
+4. Click **Generate Charts**
 
-Nella dashboard:
-- Premi **▶ Play** per avviare entrambe le animazioni in sincronia
-- Usa **🐢 / 1× / ⚡** per cambiare velocità
-- Trascina lo slider sotto ogni grafico per saltare a una giornata specifica
+In the dashboard:
+- Press **▶ Play** to start both animations in sync
+- Use **🐢 / 1× / ⚡** to change the playback speed
+- Drag the slider below each chart to jump to a specific matchday
 
 ---
 
-## Struttura del progetto
+## Project structure
 
 ```
 fanta_race/
-├── app.py              # Backend Flask: parsing Excel, fetching loghi, routing
-├── fanta_race.py       # Script originale: genera GIF/MP4 con matplotlib
+├── app.py              # Flask backend: Excel parsing, logo fetching, routing
+├── fanta_race.py       # Original script: generates GIFs/MP4s with matplotlib
 ├── templates/
-│   ├── index.html      # Pagina di upload
-│   └── dashboard.html  # Dashboard con i due grafici Plotly
+│   ├── index.html      # Upload page
+│   └── dashboard.html  # Dashboard with the two Plotly charts
 └── README.md
 ```
 
 ---
 
-## Formato Excel supportato
+## Supported Excel format
 
-Il file deve contenere un foglio con righe nel formato Fantagazzetta (`Xª Giornata lega`). Il foglio può chiamarsi in qualsiasi modo — l'app lo individua automaticamente.
+The file must contain a sheet with rows in the Fantagazzetta format (`Xª Giornata lega`). The sheet can be named anything — the app detects it automatically.
 
 ---
 
-## Loghi squadre
+## Team logos
 
-Se inserisci l'URL della tua lega, l'app tenta di recuperare i loghi dalle API o dal sito:
+If you provide your league's URL, the app tries to fetch team logos from the API or website:
 
-- `https://leghe.fantacalcio.it/nome-lega/calendario`
-- `https://leghe.fantagazzetta.com/nome-lega/12345`
+- `https://leghe.fantacalcio.it/league-name/calendario`
+- `https://leghe.fantagazzetta.com/league-name/12345`
 
-Se i loghi non vengono trovati (le SPA non sempre espongono i dati nell'HTML), i grafici funzionano comunque con i colori assegnati automaticamente a ogni squadra.
+If logos aren't found (single-page apps don't always expose data in the HTML), the charts still work, falling back to colors automatically assigned to each team.
+
+---
+
+## Tech stack
+
+- **Backend** — Python, Flask
+- **Excel parsing** — pandas, openpyxl
+- **Charts** — Plotly
+- **Logo fetching** — requests, BeautifulSoup
